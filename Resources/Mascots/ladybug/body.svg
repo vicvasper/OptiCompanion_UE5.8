@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- spotted red cap over a dark round face -->
+  <circle cx="32" cy="36" r="21" fill="#2b2b33"/>
+  <path d="M11 34 Q11 14 32 13 Q53 14 53 34 Q43 28 32 28 Q21 28 11 34 Z" fill="#ef4b4b"/>
+  <circle cx="21" cy="22" r="3" fill="#2b2b33"/>
+  <circle cx="43" cy="22" r="3" fill="#2b2b33"/>
+  <circle cx="32" cy="18" r="2.6" fill="#2b2b33"/>
+  <ellipse cx="18" cy="20" rx="3" ry="1.6" fill="#ffb3b3" fill-opacity="0.6"/>
+  <circle cx="25" cy="39" r="5.2" fill="#ffffff"/>
+  <circle cx="39" cy="39" r="5.2" fill="#ffffff"/>
+  <circle cx="25.8" cy="39.8" r="2.8" fill="#2b2b33"/>
+  <circle cx="39.8" cy="39.8" r="2.8" fill="#2b2b33"/>
+  <circle cx="26.8" cy="38.6" r="1" fill="#ffffff"/>
+  <circle cx="40.8" cy="38.6" r="1" fill="#ffffff"/>
+  <ellipse cx="17.5" cy="48" rx="3" ry="1.8" fill="#ff8f8f" fill-opacity="0.8"/>
+  <ellipse cx="46.5" cy="48" rx="3" ry="1.8" fill="#ff8f8f" fill-opacity="0.8"/>
+  <path d="M28 49 Q32 52.5 36 49" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

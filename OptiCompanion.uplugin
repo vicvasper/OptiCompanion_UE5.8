@@ -1,0 +1,32 @@
+{
+	"FileVersion": 3,
+	"Version": 4,
+	"VersionName": "0.4.0",
+	"FriendlyName": "OptiCompanion",
+	"Description": "Copiloto de rendimiento con cerebro de mosca: mide, experimenta y aprende qué optimizaciones funcionan en tu proyecto.",
+	"Category": "Performance",
+	"CreatedBy": "Victor Rivas",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.8.0",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "OptiCompanion",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		},
+		{
+			"Name": "OptiCompanionEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [ "Win64" ]
+		}
+	]
+}

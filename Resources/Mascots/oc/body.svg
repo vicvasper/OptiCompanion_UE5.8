@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- minimal: a ring like the editor's logo, the O and the C of OptiCompanion are the eyes -->
+  <circle cx="32" cy="36" r="21" fill="#111111" stroke="#e6e6e6" stroke-width="1.6"/>
+  <circle cx="24" cy="36" r="6" fill="none" stroke="#e6e6e6" stroke-width="2.6"/>
+  <path d="M44.2 31.4 A6 6 0 1 0 44.2 40.6" fill="none" stroke="#e6e6e6" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="24" cy="36" r="1.6" fill="#e6e6e6"/>
+  <circle cx="40" cy="36" r="1.6" fill="#e6e6e6"/>
+</svg>
