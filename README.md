@@ -1,5 +1,8 @@
 # OptiCompanion
 
+https://github.com/user-attachments/assets/6021dbe9-ea9b-468d-aea2-cdf3ba655a5a
+
+
 A performance copilot for Unreal Engine 5.8 with a fruit fly brain. A small mascot (by default OC, the OptiCompanion monogram) lives on top of your editor. While you take a break it runs short experiments, learns which optimizations actually work **in your project, on your hardware**, and tells you about them at the next pause. It never changes anything without asking.
 
 > Early development (0.2). Windows only. *Español más abajo.*
