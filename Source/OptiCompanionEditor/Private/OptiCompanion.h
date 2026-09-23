@@ -78,6 +78,8 @@ public:
 	void ExportBrain();
 	void ImportBrain();
 	void ApplySettingsChange();
+	/** Starts over: undoes what you applied (unless bKeepApplied), empties the notebook and forgets what it learned. */
+	void ResetEverything(bool bIncludeLongTermBrain, bool bKeepApplied);
 
 	FSimpleMulticastDelegate OnChanged;
 

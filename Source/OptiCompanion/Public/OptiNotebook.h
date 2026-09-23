@@ -127,6 +127,8 @@ public:
 	void AddTrial(const FOptiTrial& Trial);
 	const TArray<FOptiTrial>& GetTrials() const { return Trials; }
 	void ClearTrials();
+	/** Throws away every finding and every experiment: a fresh start for this project. */
+	void Clear();
 
 	FSimpleMulticastDelegate OnChanged;
 

@@ -189,7 +189,7 @@ namespace OptiTrap
 				return Found;
 			}
 			UMaterial* Material = NewObject<UMaterial>(NewPackage(Name), Name, AssetFlags);
-			UMaterialExpression* Color = HeavyChain(Material, Noise, Hdr, bGlass ? 40 : 80);
+			UMaterialExpression* Color = HeavyChain(Material, Noise, Hdr, bGlass ? 70 : 120);
 			UMaterialEditingLibrary::ConnectMaterialProperty(Color, TEXT(""), MP_BaseColor);
 			UMaterialExpression* Glow = MultiplyBy(Material, Color, TEXT(""), 0.15f, 400, 100);
 			UMaterialEditingLibrary::ConnectMaterialProperty(Glow, TEXT(""), MP_EmissiveColor);
@@ -341,7 +341,7 @@ namespace OptiTrap
 			Scs->AddNode(Root);
 
 			// Trap: six dense meshes that could have been one instanced component, all casting shadows.
-			for (int32 Index = 0; Index < 6; ++Index)
+			for (int32 Index = 0; Index < 8; ++Index)
 			{
 				USCS_Node* Node = Scs->CreateNode(UStaticMeshComponent::StaticClass(), *FString::Printf(TEXT("DenseMesh_%d"), Index));
 				UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(Node->ComponentTemplate);

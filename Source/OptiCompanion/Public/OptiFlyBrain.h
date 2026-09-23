@@ -75,6 +75,9 @@ public:
 
 	/** Loads the wiring and the project and long-term memories. Non-persistent brains (tests) never touch disk. */
 	void Initialize(const FString& ProjectName, bool bPersistent = true);
+
+	/** Forgets everything learned in this project (and, with bIncludeLongTerm, across projects) and deletes the files. */
+	void Forget(bool bIncludeLongTerm);
 	void Save() const;
 
 	/** Kenyon cells that survive APL inhibition for this smell. */

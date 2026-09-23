@@ -62,6 +62,10 @@ namespace
 	constexpr int32 CleanAfterTrials = 12;
 	/** A frame profile this fresh is reused instead of measuring it again before an experiment. */
 	constexpr double ReusableSmellSeconds = 25.0;
+	/** Blocks of one variant differing by more than this share of their own mean mean the frame was not comparable. */
+	constexpr double UnstableFrameShare = 0.2;
+	/** After shader or asset compilation stops, the frame needs a moment before it means anything again. */
+	constexpr double SettleAfterBlockerSeconds = 2.0;
 	/** Once clean, experiments continue this much less often (your own changes are still measured at once). */
 	constexpr double CleanBackoffSeconds = 90.0;
 	/** How long the result of the last experiment stays next to the mascot. */
@@ -328,6 +332,9 @@ bool FOptiCompanion::CanNap(double IdleSeconds, bool& bOutAway)
 	}
 	if (!Blocker.IsEmpty())
 	{
+		// Whatever is going on (compiling, playing) also changed the frame: measure it again once it is over.
+		NextNapTime = FMath::Max(NextNapTime, FPlatformTime::Seconds() + SettleAfterBlockerSeconds);
+		bHasSmell = false;
 		return false;
 	}
 	bOutAway = IdleSeconds >= S.IdleSecondsBeforeNap;
@@ -636,12 +643,25 @@ void FOptiCompanion::OnExperimented(const FOptiProbeResult& Result)
 	const double TargetB = TargetTime(Result, Action, true);
 	const float GainFraction = TargetA > 0.001 ? static_cast<float>((TargetA - TargetB) / TargetA) : 0.f;
 
+	const FString Metric = Action.Passes.IsEmpty() ? TEXT("FrameTime") : TEXT("GPUTime");
+	const FOptiStatResult* Stat = Result.FindStat(Metric);
+
+	// Blocks of the same variant should measure the same thing. When they do not (shaders compiling, streaming,
+	// something starting up), the comparison means nothing: drop it instead of teaching the fly nonsense.
+	if (Stat && Stat->MeanA > 0.0 && Stat->NoiseStdDev > UnstableFrameShare * Stat->MeanA)
+	{
+		UE_LOG(LogOptiCompanion, Log, TEXT("Dropped %s: the frame moved too much on its own (%.2f ms of noise on %.2f ms)."),
+			*Action.Id.ToString(), Stat->NoiseStdDev, Stat->MeanA);
+		RecordTrial(EOptiTrialOutcome::Dropped, &Result, -1.f);
+		bHasSmell = false;
+		EndNap(false);
+		return;
+	}
+
 	// The timing is learned now; how it looks is learned after the visual check (if it is worth one).
 	Brain.LearnFromExperiment(NapDecision, GainFraction, -1.f);
 	RecentlyTested.Add(Action.Id.ToString() + TEXT("|") + NapSmell.ContextKey, FPlatformTime::Seconds());
 
-	const FString Metric = Action.Passes.IsEmpty() ? TEXT("FrameTime") : TEXT("GPUTime");
-	const FOptiStatResult* Stat = Result.FindStat(Metric);
 	const double GainMs = Stat ? -Stat->Delta : 0.0;
 	const bool bPromising = Stat && Stat->bSignificant && GainMs >= FMath::Max<double>(S.MinGainMs, Stat->MeanA * S.MinGainPercent / 100.0);
 
@@ -1448,6 +1468,21 @@ void FOptiCompanion::OnPackageSaved(const FString& Filename, UPackage* Package, 
 
 namespace
 {
+	FAutoConsoleCommandWithWorldAndArgs ResetCommand(
+		TEXT("Opti.Reset"),
+		TEXT("Starts over: undoes every applied finding, empties the notebook and forgets this project. 'all' also forgets every project; 'keep' leaves what you applied in place."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			if (TSharedPtr<FOptiCompanion> Companion = FOptiCompanion::Get())
+			{
+				auto Said = [&Args](const TCHAR* Word)
+				{
+					return Args.ContainsByPredicate([Word](const FString& Arg) { return Arg.StartsWith(Word, ESearchCase::IgnoreCase); });
+				};
+				Companion->ResetEverything(Said(TEXT("all")), Said(TEXT("keep")));
+			}
+		}));
+
 	FAutoConsoleCommandWithWorldAndArgs ThoroughCommand(
 		TEXT("Opti.Thorough"),
 		TEXT("Longer experiments on/off: more evidence per finding, a few seconds more per experiment."),
@@ -1803,6 +1838,42 @@ void FOptiCompanion::ImportBrain()
 		Brain.ImportLongTerm(Files[0]);
 		OnChanged.Broadcast();
 	}
+}
+
+void FOptiCompanion::ResetEverything(bool bIncludeLongTermBrain, bool bKeepApplied)
+{
+	AbortNap();
+	int32 Undone = 0;
+	if (!bKeepApplied)
+	{
+		// Put the project back as it was before the fly: ini values, level components and Blueprint defaults.
+		bOwnChange = true;
+		for (const TSharedRef<FOptiFinding>& Finding : Notebook.GetFindings())
+		{
+			FText Error;
+			if (Finding->State == EOptiFindingState::Applied && OptiApply::Undo(*Finding, Error))
+			{
+				++Undone;
+			}
+		}
+		bOwnChange = false;
+		SnapshotCVars();
+	}
+	Notebook.Clear();
+	Brain.Forget(bIncludeLongTermBrain);
+	NoticeQueue.Reset();
+	NoticeTimes.Reset();
+	RecentlyTested.Reset();
+	IgnoredStreak = 0;
+	DryStreak = 0;
+	DryContext.Reset();
+	CleanContext.Reset();
+	bHasSmell = false;
+	LastResultText = FText::GetEmpty();
+	SetMood(EOptiFlyMood::Grooming);
+	UE_LOG(LogOptiCompanion, Display, TEXT("Reset: %d applied findings undone, notebook emptied, %s memory forgotten."),
+		Undone, bIncludeLongTermBrain ? TEXT("long-term and project") : TEXT("project"));
+	OnChanged.Broadcast();
 }
 
 void FOptiCompanion::ApplySettingsChange()

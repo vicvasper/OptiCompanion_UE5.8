@@ -547,6 +547,44 @@ int32 FOptiFlyBrain::LearnedActions() const
 	return Learned;
 }
 
+void FOptiFlyBrain::Forget(bool bIncludeLongTerm)
+{
+	for (float& Value : Weights)
+	{
+		Value = 0.f;
+	}
+	for (float& Value : EvidenceProject)
+	{
+		Value = 0.f;
+	}
+	for (float& Value : EvidencePending)
+	{
+		Value = 0.f;
+	}
+	for (float& Value : NoveltyWeights)
+	{
+		Value = 1.f;
+	}
+	Stats.Experiments = 0;
+	Stats.Naps = 0;
+	IFileManager::Get().Delete(*ProjectPath(), false, true, true);
+
+	if (bIncludeLongTerm)
+	{
+		for (float& Value : EvidenceLongTerm)
+		{
+			Value = 0.f;
+		}
+		Stats.LongTermExperiments = 0;
+		KnownProjects.Reset();
+		KnownProjects.Add(ProjectName);
+		Stats.Projects = 1;
+		IFileManager::Get().Delete(*LongTermPath(), false, true, true);
+	}
+	UE_LOG(LogOptiCompanion, Display, TEXT("The fly forgot %s. Only its innate knowledge is left."),
+		bIncludeLongTerm ? TEXT("everything, in every project") : TEXT("what it learned in this project"));
+}
+
 FString FOptiFlyBrain::LongTermPath() const
 {
 	return FPaths::Combine(FPlatformProcess::UserSettingsDir(), TEXT("OptiCompanion"), TEXT("LongTermBrain.opti"));

@@ -279,6 +279,15 @@ void FOptiNotebook::ClearTrials()
 	OnChanged.Broadcast();
 }
 
+void FOptiNotebook::Clear()
+{
+	Findings.Reset();
+	Trials.Reset();
+	Save();
+	SaveTrials();
+	OnChanged.Broadcast();
+}
+
 void FOptiNotebook::Load(bool bShared)
 {
 	bSharedWithTeam = bShared;

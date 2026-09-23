@@ -118,7 +118,7 @@ namespace OptiTrap
 		AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(FVector(0, 0, 0), FRotator::ZeroRotator);
 		Fog->SetActorLabel(TEXT("Fog_Volumetric"));
 		Fog->GetComponent()->SetVolumetricFog(true);
-		Fog->GetComponent()->SetFogDensity(0.05f);
+		Fog->GetComponent()->SetFogDensity(0.12f);
 
 		// Ground and some pillars to catch light and shadow.
 		UStaticMesh* Plane = Mesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
@@ -131,14 +131,14 @@ namespace OptiTrap
 			return false;
 		}
 		SpawnMesh(World, Plane, FVector::ZeroVector, FVector(400.f, 400.f, 1.f), TEXT("Ground"));
-		for (int32 Index = 0; Index < 60; ++Index)
+		for (int32 Index = 0; Index < 140; ++Index)
 		{
 			const FVector Location(Rng.FRandRange(-9000.f, 9000.f), Rng.FRandRange(-9000.f, 9000.f), 300.f);
 			SpawnMesh(World, Cylinder, Location, FVector(1.5f, 1.5f, 6.f), FString::Printf(TEXT("Pillar_%02d"), Index));
 		}
 
 		// Trap: hundreds of tiny props, all casting shadows and drawn at any distance.
-		for (int32 Index = 0; Index < 900; ++Index)
+		for (int32 Index = 0; Index < 2600; ++Index)
 		{
 			const FVector Location(Rng.FRandRange(-15000.f, 15000.f), Rng.FRandRange(-15000.f, 15000.f), 12.f);
 			const float Size = Rng.FRandRange(0.12f, 0.3f);
@@ -146,13 +146,13 @@ namespace OptiTrap
 		}
 
 		// Trap: many small shadow-casting lights, a dozen with absurd radii, none with a draw distance.
-		for (int32 Index = 0; Index < 36; ++Index)
+		for (int32 Index = 0; Index < 100; ++Index)
 		{
-			const FVector Location(-7500.f + (Index % 6) * 3000.f, -7500.f + (Index / 6) * 3000.f, 250.f);
+			const FVector Location(-7500.f + (Index % 10) * 1700.f, -7500.f + (Index / 10) * 1700.f, 250.f);
 			const FLinearColor Color = FLinearColor::MakeFromHSV8(static_cast<uint8>(Rng.RandHelper(255)), 120, 255);
 			SpawnLight(World, Location, 450.f, Color, FString::Printf(TEXT("SmallLight_%02d"), Index));
 		}
-		for (int32 Index = 0; Index < 12; ++Index)
+		for (int32 Index = 0; Index < 24; ++Index)
 		{
 			const FVector Location(Rng.FRandRange(-8000.f, 8000.f), Rng.FRandRange(-8000.f, 8000.f), 600.f);
 			SpawnLight(World, Location, 6000.f, FLinearColor(1.f, 0.85f, 0.7f), FString::Printf(TEXT("HugeRadiusLight_%02d"), Index));
@@ -176,31 +176,31 @@ namespace OptiTrap
 		const FHeavyAssets Heavy = CreateHeavyAssets();
 		if (Heavy.IsValid())
 		{
-			for (int32 Index = 0; Index < 24; ++Index)
+			for (int32 Index = 0; Index < 110; ++Index)
 			{
-				const FVector Location(Rng.FRandRange(-9000.f, -4500.f), Rng.FRandRange(-4500.f, 1500.f), 180.f);
-				AStaticMeshActor* Actor = SpawnMesh(World, Heavy.DenseMesh, Location, FVector(2.5f), FString::Printf(TEXT("DenseMesh_NoLOD_%02d"), Index));
+				const FVector Location(Rng.FRandRange(-10000.f, -3500.f), Rng.FRandRange(-5500.f, 2500.f), Rng.FRandRange(150.f, 700.f));
+				AStaticMeshActor* Actor = SpawnMesh(World, Heavy.DenseMesh, Location, FVector(Rng.FRandRange(2.f, 4.5f)), FString::Printf(TEXT("DenseMesh_NoLOD_%03d"), Index));
 				Actor->GetStaticMeshComponent()->SetMaterial(0, Heavy.HeavyOpaque);
 			}
-			for (int32 Index = 0; Index < 8; ++Index)
+			for (int32 Index = 0; Index < 30; ++Index)
 			{
-				const FVector Location(-8200.f + Index * 450.f, 2200.f, 150.f);
-				AStaticMeshActor* Actor = SpawnMesh(World, Cube, Location, FVector(3.f), FString::Printf(TEXT("HeavyMaterialBlock_%02d"), Index));
+				const FVector Location(-8600.f + (Index % 10) * 500.f, 1600.f + (Index / 10) * 900.f, 150.f + (Index % 3) * 260.f);
+				AStaticMeshActor* Actor = SpawnMesh(World, Cube, Location, FVector(4.f), FString::Printf(TEXT("HeavyMaterialBlock_%02d"), Index));
 				Actor->GetStaticMeshComponent()->SetMaterial(0, Heavy.HeavyOpaque);
 			}
-			// A wall of glass layers facing the camera: every pixel behind it is shaded twelve times.
-			for (int32 Index = 0; Index < 12; ++Index)
+			// A wall of glass layers across the view: every pixel behind it is shaded once per layer.
+			for (int32 Index = 0; Index < 26; ++Index)
 			{
-				AStaticMeshActor* Actor = SpawnMesh(World, Plane, FVector(-8600.f + Index * 35.f, -1200.f, 500.f), FVector(1.f, 14.f, 9.f),
+				AStaticMeshActor* Actor = SpawnMesh(World, Plane, FVector(-9500.f + Index * 30.f, -2000.f, 700.f), FVector(1.f, 30.f, 18.f),
 					FString::Printf(TEXT("GlassLayer_%02d"), Index));
 				Actor->SetActorRotation(FRotator(90.f, 0.f, 0.f));
 				Actor->GetStaticMeshComponent()->SetMaterial(0, Heavy.HeavyGlass);
 			}
 			if (UClass* PropClass = Heavy.HeavyProp->GeneratedClass)
 			{
-				for (int32 Index = 0; Index < 10; ++Index)
+				for (int32 Index = 0; Index < 26; ++Index)
 				{
-					const FVector Location(Rng.FRandRange(-8500.f, -5000.f), Rng.FRandRange(-3500.f, 500.f), 0.f);
+					const FVector Location(Rng.FRandRange(-9500.f, -4000.f), Rng.FRandRange(-4500.f, 1500.f), 0.f);
 					if (AActor* Prop = World->SpawnActor<AActor>(PropClass, Location, FRotator(0.f, Rng.FRandRange(0.f, 360.f), 0.f)))
 					{
 						Prop->SetActorLabel(FString::Printf(TEXT("BP_HeavyProp_%02d"), Index));
@@ -222,7 +222,7 @@ namespace OptiTrap
 		}
 
 		const bool bSaved = UEditorLoadingAndSavingUtils::SaveMap(World, LevelPath);
-		UE_LOG(LogOptiCompanion, Display, TEXT("Trap level built%s: 48 shadow-casting lights (12 with 60 m radius), 900 tiny props, volumetric fog, clouds, real-time sky capture, heavy post process, 24 dense meshes without LODs, stacked translucent glass, heavy materials and textures, and 10 heavy Blueprint props."),
+		UE_LOG(LogOptiCompanion, Display, TEXT("Trap level built%s: 124 shadow-casting lights (24 with 60 m radius), 2600 tiny props, dense volumetric fog, clouds, real-time sky capture, heavy post process, 110 dense meshes without LODs, 26 stacked translucent layers, heavy materials and textures, and 26 heavy Blueprint props."),
 			bSaved ? *FString::Printf(TEXT(" and saved to %s"), LevelPath) : TEXT(" (not saved)"));
 		return true;
 	}

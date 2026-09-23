@@ -90,6 +90,8 @@ Settings: **Editor Preferences > Plugins > OptiCompanion**. Right-click the fly 
 | `Opti.Cancel` | Stops a manual probe and restores every console variable |
 | `Opti.Catalog` | Lists every action, its current values and whether it can run in this level |
 | `Opti.Notebook [findings\|tested\|inventory]` | Opens the notebook on a page |
+| `Opti.Reset [all\|keep]` | Starts over: undoes every applied finding, empties the notebook and forgets what it learned here (`all` forgets every project, `keep` leaves your applied changes in place) |
+| `Opti.Thorough` | Longer experiments: more evidence, a few seconds more each |
 
 Automated run that closes itself: add `-OptiExitAfterProbe` to a `-game -ExecCmds="Opti.Probe ..."` command line.
 
