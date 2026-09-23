@@ -118,7 +118,7 @@ public:
 	FOnOptiProbeFinished OnFinished;
 
 private:
-	enum class EState : uint8 { Idle, WaitingForCapture, Warmup, Measuring, Paused, WaitingForFile, Done };
+	enum class EState : uint8 { Idle, WaitingForCapture, Warmup, Measuring, Paused, WaitingForFile, Analyzing, Done };
 
 	bool Tick(float DeltaTime);
 	void ApplyVariant(bool bVariantB);
@@ -136,6 +136,8 @@ private:
 	EState State = EState::Idle;
 	FTSTicker::FDelegateHandle TickerHandle;
 	TSharedFuture<FString> CsvFuture;
+	/** Parsing and the bootstrap run on a worker thread: they must never hitch the editor. */
+	TFuture<FOptiProbeResult> AnalysisFuture;
 	FOptiCapture CaptureA;
 	FOptiCapture CaptureB;
 	FOptiCapture CaptureA2;

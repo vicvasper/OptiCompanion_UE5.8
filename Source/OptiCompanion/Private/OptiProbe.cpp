@@ -8,6 +8,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Math/RandomStream.h"
+#include "Async/Async.h"
+#include "Async/ParallelFor.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
@@ -338,43 +340,65 @@ bool FOptiProbe::Tick(float DeltaTime)
 	case EState::WaitingForFile:
 		if (CsvFuture.IsValid() && CsvFuture.IsReady())
 		{
-			FOptiProbeResult Result;
-			Result.Settings = Settings;
-			Result.Seed = Seed;
-			Result.CsvPath = CsvFuture.Get();
-			Result.CaptureA = MoveTemp(CaptureA);
-			Result.CaptureB = MoveTemp(CaptureB);
-			Result.CaptureA2 = MoveTemp(CaptureA2);
+			FOptiProbeResult Pending;
+			Pending.Settings = Settings;
+			Pending.Seed = Seed;
+			Pending.CsvPath = CsvFuture.Get();
+			Pending.CaptureA = MoveTemp(CaptureA);
+			Pending.CaptureB = MoveTemp(CaptureB);
+			Pending.CaptureA2 = MoveTemp(CaptureA2);
 
-			OptiAnalysis::FBlockMeans Blocks;
-			if (OptiAnalysis::ParseProbeCsv(Result.CsvPath, Blocks, Result.Error))
+			// Reading the CSV and bootstrapping every column takes long enough to be felt as a stutter: do it
+			// on a worker thread, one task per column, and pick the result up on a later tick.
+			AnalysisFuture = Async(EAsyncExecution::ThreadPool, [Result = MoveTemp(Pending)]() mutable
 			{
-				Result.ValidBlocksA = Blocks.A.Num();
-				Result.ValidBlocksB = Blocks.B.Num();
-				TArray<double> ColumnA, ColumnB;
-				for (int32 Column = 1; Column < Blocks.Columns.Num(); ++Column)
+				OptiAnalysis::FBlockMeans Blocks;
+				if (OptiAnalysis::ParseProbeCsv(Result.CsvPath, Blocks, Result.Error))
 				{
-					if (!OptiAnalysis::IsReportedColumn(Blocks.Columns[Column]))
+					Result.ValidBlocksA = Blocks.A.Num();
+					Result.ValidBlocksB = Blocks.B.Num();
+					TArray<int32> Columns;
+					for (int32 Column = 1; Column < Blocks.Columns.Num(); ++Column)
 					{
-						continue;
+						if (OptiAnalysis::IsReportedColumn(Blocks.Columns[Column]))
+						{
+							Columns.Add(Column);
+						}
 					}
-					ColumnA.Reset();
-					ColumnB.Reset();
-					for (const TArray<double>& Block : Blocks.A) { ColumnA.Add(Block[Column]); }
-					for (const TArray<double>& Block : Blocks.B) { ColumnB.Add(Block[Column]); }
-					Result.Stats.Add(OptiAnalysis::CompareColumn(Blocks.Columns[Column], ColumnA, ColumnB, Seed));
+					TArray<FOptiStatResult> Stats;
+					Stats.SetNum(Columns.Num());
+					ParallelFor(Columns.Num(), [&Columns, &Blocks, &Stats, Seed = Result.Seed](int32 Index)
+					{
+						const int32 Column = Columns[Index];
+						TArray<double> ColumnA, ColumnB;
+						ColumnA.Reserve(Blocks.A.Num());
+						ColumnB.Reserve(Blocks.B.Num());
+						for (const TArray<double>& Block : Blocks.A) { ColumnA.Add(Block[Column]); }
+						for (const TArray<double>& Block : Blocks.B) { ColumnB.Add(Block[Column]); }
+						Stats[Index] = OptiAnalysis::CompareColumn(Blocks.Columns[Column], ColumnA, ColumnB, Seed);
+					});
+					Result.Stats = MoveTemp(Stats);
+					Result.Stats.Sort([](const FOptiStatResult& L, const FOptiStatResult& R)
+					{
+						const bool bLeftCounter = OptiAnalysis::IsCounterColumn(L.Name);
+						if (bLeftCounter != OptiAnalysis::IsCounterColumn(R.Name))
+						{
+							return !bLeftCounter;
+						}
+						return FMath::Abs(L.Delta) > FMath::Abs(R.Delta);
+					});
 				}
-				Result.Stats.Sort([](const FOptiStatResult& L, const FOptiStatResult& R)
-				{
-					const bool bLeftCounter = OptiAnalysis::IsCounterColumn(L.Name);
-					if (bLeftCounter != OptiAnalysis::IsCounterColumn(R.Name))
-					{
-						return !bLeftCounter;
-					}
-					return FMath::Abs(L.Delta) > FMath::Abs(R.Delta);
-				});
-			}
-			Finish(MoveTemp(Result));
+				return MoveTemp(Result);
+			});
+			State = EState::Analyzing;
+		}
+		break;
+
+	case EState::Analyzing:
+		if (AnalysisFuture.IsValid() && AnalysisFuture.IsReady())
+		{
+			FOptiProbeResult Analysed = AnalysisFuture.Get();
+			Finish(MoveTemp(Analysed));
 			return false;
 		}
 		break;

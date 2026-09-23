@@ -103,6 +103,8 @@ private:
 	void StartNap(bool bAway);
 	void TickNap(double IdleSeconds);
 	void OnSniffed(const struct FOptiProbeResult& Result);
+	/** Picks an action for the current smell and starts the A/B experiment. */
+	void DecideAndExperiment();
 	void OnExperimented(const struct FOptiProbeResult& Result);
 	void TickVisualCheck(double IdleSeconds);
 	void SetVariantNow(bool bVariantB);
@@ -166,6 +168,9 @@ private:
 	uint32 NapView = 0;
 	bool bNapAway = false;
 	bool bHasSmell = false;
+	/** When the current smell was taken, and for which camera: a fresh one is reused instead of sniffing again. */
+	double SmellTime = -1000.0;
+	uint32 SmellView = 0;
 
 	// Visual check, done in the first short pause after a promising timing result.
 	TSharedPtr<FOptiProbeResult> PendingResult;

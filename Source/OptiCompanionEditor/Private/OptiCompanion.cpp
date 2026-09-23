@@ -60,6 +60,8 @@ namespace
 	constexpr double SlowFrameMs = 1000.0 / 60.0;
 	/** Experiments in a row without a finding before the scene is called clean. */
 	constexpr int32 CleanAfterTrials = 12;
+	/** A frame profile this fresh is reused instead of measuring it again before an experiment. */
+	constexpr double ReusableSmellSeconds = 25.0;
 	/** Once clean, experiments continue this much less often (your own changes are still measured at once). */
 	constexpr double CleanBackoffSeconds = 90.0;
 	/** How long the result of the last experiment stays next to the mascot. */
@@ -139,7 +141,7 @@ void FOptiCompanion::Startup()
 		}
 	}
 
-	NextNapTime = FPlatformTime::Seconds() + Settings().IdleSecondsBeforeNap;
+	NextNapTime = FPlatformTime::Seconds() + 3.0; // start looking as soon as the editor has settled
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FOptiCompanion::Tick));
 	PackageSavedHandle = UPackage::PackageSavedWithContextEvent.AddSP(this, &FOptiCompanion::OnPackageSaved);
 	EndPIEHandle = FEditorDelegates::EndPIE.AddSP(this, &FOptiCompanion::OnEndPIE);
@@ -301,7 +303,7 @@ bool FOptiCompanion::IsCameraStill() const
 {
 	// About StillCameraSeconds at the frame rate the editor is running at right now.
 	const double FrameMs = FMath::Max(1.0, Reflex.RecentFrameMs(30));
-	const int32 Needed = FMath::Clamp(FMath::RoundToInt32(Settings().StillCameraSeconds * 1000.0 / FrameMs), 10, 590);
+	const int32 Needed = FMath::Clamp(FMath::RoundToInt32(Settings().StillCameraSeconds * 1000.0 / FrameMs), 6, 590);
 	return Reflex.Last().View != 0 && Reflex.StableFrames() >= Needed;
 }
 
@@ -464,11 +466,21 @@ void FOptiCompanion::StartNap(bool bAway)
 	SetMood(bAway ? EOptiFlyMood::Sleeping : EOptiFlyMood::Sniffing);
 	LastStatus = OptiText(TEXT("status.sniffing"));
 
+	// The frame profile only changes when the level or the camera does: a fresh one is reused, which saves a
+	// second and a half before every experiment.
+	if (bHasSmell && SmellView == NapView && FPlatformTime::Seconds() - SmellTime < ReusableSmellSeconds)
+	{
+		DecideAndExperiment();
+		OnChanged.Broadcast();
+		return;
+	}
+
 	FOptiProbeSettings Sniff;
 	Sniff.Label = TEXT("Sniff");
+	const bool bThorough = Settings().bThoroughExperiments;
 	Sniff.BlocksPerVariant = 2;
-	Sniff.FramesPerBlock = 30;
-	Sniff.WarmupFrames = 10;
+	Sniff.FramesPerBlock = bThorough ? 30 : 16;
+	Sniff.WarmupFrames = bThorough ? 10 : 5;
 	Sniff.bKeepFiles = false;
 	Probe = MakeShared<FOptiProbe>(Sniff);
 	Probe->OnFinished.BindSP(this, &FOptiCompanion::OnSniffed);
@@ -521,7 +533,14 @@ void FOptiCompanion::OnSniffed(const FOptiProbeResult& Result)
 	// Smell what the camera sees: the same action is worth more or less depending on what is on screen.
 	NapSmell = FOptiSmell::Sniff(Profile, EditorWorld(), CurrentView());
 	bHasSmell = true;
+	SmellTime = FPlatformTime::Seconds();
+	SmellView = ViewHash();
+	DecideAndExperiment();
+}
 
+void FOptiCompanion::DecideAndExperiment()
+{
+	const UOptiCompanionSettings& S = Settings();
 	// While you work only changes the brain expects to be invisible are tried; the riskier ones wait for a break.
 	UWorld* SceneWorld = EditorWorld();
 	const float MaxVisual = bNapAway ? FLT_MAX : 0.5f;
@@ -576,10 +595,11 @@ void FOptiCompanion::OnSniffed(const FOptiProbeResult& Result)
 	Experiment.Label = Action.Id.ToString();
 	Experiment.ChangesA = NapDecision.VariantA;
 	Experiment.ChangesB = NapDecision.VariantB;
-	// Frames are noisier while you work in other panels, so the experiment takes a few more blocks.
-	Experiment.BlocksPerVariant = bNapAway ? 4 : 6;
-	Experiment.FramesPerBlock = 40;
-	Experiment.WarmupFrames = 12;
+	// Short by default: about a second and a half of frames, still four interleaved blocks per variant, and the
+	// same significance test decides. Thorough mode measures longer, which only matters for the smallest savings.
+	Experiment.BlocksPerVariant = Settings().bThoroughExperiments ? 6 : 4;
+	Experiment.FramesPerBlock = Settings().bThoroughExperiments ? 40 : 20;
+	Experiment.WarmupFrames = Settings().bThoroughExperiments ? 12 : 6;
 	Experiment.bKeepFiles = false;
 	// Scene actions: the components are switched in memory between blocks and always end back at A.
 	NapSceneEdits.Reset();
@@ -671,9 +691,9 @@ void FOptiCompanion::TickVisualCheck(double Idle)
 {
 	// Three frame grabs (A, B, A again) take a fraction of a second and stall the GPU briefly, so they wait
 	// for a short pause with the camera still. If you touch anything halfway, A is restored and it retries.
-	constexpr double PauseNeeded = 0.5;
+	constexpr double PauseNeeded = 0.15;
 	constexpr int32 SettleFrames = 10;
-	const bool bCalm = Idle >= PauseNeeded && Reflex.StableFrames() >= 20 && NapBlocker().IsEmpty();
+	const bool bCalm = Idle >= PauseNeeded && Reflex.StableFrames() >= 8 && NapBlocker().IsEmpty();
 
 	if (FPlatformTime::Seconds() > VisualDeadline)
 	{
@@ -1098,7 +1118,8 @@ void FOptiCompanion::OnPropertyChanged(UObject* Object, FPropertyChangedEvent& E
 
 void FOptiCompanion::OnNaturalChange(int32 ActionIndex, const FString& Label)
 {
-	// You changed something yourself: there may be new things worth testing.
+	// You changed something yourself: there may be new things worth testing, and the frame profile is old news.
+	bHasSmell = false;
 	DryStreak = 0;
 	CleanContext.Reset();
 	if (!Settings().bEnableSaveReflex)
@@ -1423,6 +1444,24 @@ void FOptiCompanion::OnPackageSaved(const FString& Filename, UPackage* Package, 
 		Reflex.OnAssetSaved(Package->GetName());
 	}
 	OnNaturalPause(EPause::Saved);
+}
+
+namespace
+{
+	FAutoConsoleCommandWithWorldAndArgs ThoroughCommand(
+		TEXT("Opti.Thorough"),
+		TEXT("Longer experiments on/off: more evidence per finding, a few seconds more per experiment."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			UOptiCompanionSettings* Settings = GetMutableDefault<UOptiCompanionSettings>();
+			Settings->bThoroughExperiments = Args.IsEmpty() ? !Settings->bThoroughExperiments : (Args[0] != TEXT("0") && !Args[0].Equals(TEXT("off"), ESearchCase::IgnoreCase));
+			Settings->SaveConfig();
+			if (TSharedPtr<FOptiCompanion> Companion = FOptiCompanion::Get())
+			{
+				Companion->ApplySettingsChange();
+			}
+			UE_LOG(LogOptiCompanion, Display, TEXT("Thorough experiments %s."), Settings->bThoroughExperiments ? TEXT("on") : TEXT("off: short experiments"));
+		}));
 }
 
 void FOptiCompanion::OnBeginPIE(bool bIsSimulating)

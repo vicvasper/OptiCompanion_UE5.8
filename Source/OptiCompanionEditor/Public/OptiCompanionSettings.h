@@ -92,15 +92,23 @@ public:
 	bool bExperimentWhileWorking = true;
 
 	/** How long the viewport camera must stay still before an experiment starts or resumes. */
-	UPROPERTY(config, EditAnywhere, Category = "Naps", meta = (ClampMin = 0.5, ClampMax = 30, Units = "s"))
-	float StillCameraSeconds = 2.f;
+	UPROPERTY(config, EditAnywhere, Category = "Naps", meta = (ClampMin = 0.2, ClampMax = 30, Units = "s"))
+	float StillCameraSeconds = 0.5f;
 
 	/** Away from the keyboard this long, the fly also tries riskier changes and changes to level components. */
 	UPROPERTY(config, EditAnywhere, Category = "Naps", meta = (ClampMin = 5, ClampMax = 600, Units = "s"))
 	float IdleSecondsBeforeNap = 20.f;
 
-	UPROPERTY(config, EditAnywhere, Category = "Naps", meta = (ClampMin = 2, ClampMax = 3600, Units = "s"))
-	float SecondsBetweenNaps = 10.f;
+	/**
+	 * Longer experiments: more and longer blocks per variant, so each finding rests on more evidence. Off by
+	 * default, because short experiments already have to pass the same significance test, they just find fewer
+	 * of the small savings.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "General", AdvancedDisplay)
+	bool bThoroughExperiments = false;
+
+	UPROPERTY(config, EditAnywhere, Category = "Naps", meta = (ClampMin = 0.5, ClampMax = 3600, Units = "s"))
+	float SecondsBetweenNaps = 1.5f;
 
 	/** Unreal slows itself down when it is not the active window, which distorts measurements. Turn off only for automated runs. */
 	UPROPERTY(config, EditAnywhere, Category = "Naps", AdvancedDisplay)

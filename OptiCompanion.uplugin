@@ -3,30 +3,34 @@
 	"Version": 4,
 	"VersionName": "0.4.0",
 	"FriendlyName": "OptiCompanion",
-	"Description": "Copiloto de rendimiento con cerebro de mosca: mide, experimenta y aprende qué optimizaciones funcionan en tu proyecto.",
+	"Description": "Editor-only performance copilot with a fruit fly brain: measures, experiments and learns which optimizations actually work in your project.",
 	"Category": "Performance",
 	"CreatedBy": "Victor Rivas",
-	"CreatedByURL": "",
-	"DocsURL": "",
+	"CreatedByURL": "https://github.com/vicvasper/OptiCompanion",
+	"DocsURL": "https://github.com/vicvasper/OptiCompanion#readme",
 	"MarketplaceURL": "",
-	"SupportURL": "",
+	"SupportURL": "https://github.com/vicvasper/OptiCompanion/issues",
 	"EngineVersion": "5.8.0",
-	"CanContainContent": true,
+	"CanContainContent": false,
 	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
 			"Name": "OptiCompanion",
-			"Type": "DeveloperTool",
+			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "OptiCompanionEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64" ]
+			"PlatformAllowList": [
+				"Win64"
+			]
 		}
 	]
 }
