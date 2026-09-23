@@ -5,7 +5,7 @@ https://github.com/user-attachments/assets/6021dbe9-ea9b-468d-aea2-cdf3ba655a5a
 
 A performance copilot for Unreal Engine 5.8 with a fruit fly brain. A small mascot (by default OC, the OptiCompanion monogram) lives on top of your editor. While you take a break it runs short experiments, learns which optimizations actually work **in your project, on your hardware**, and tells you about them at the next pause. It never changes anything without asking.
 
-> Early development (0.2). Windows only. *Español más abajo.*
+> Early development (0.4). Windows only. Editor only: nothing of it ends up in a packaged game. *Español más abajo.*
 
 ## What it does
 
@@ -104,15 +104,19 @@ Automated run that closes itself: add `-OptiExitAfterProbe` to a `-game -ExecCmd
 
 ## License
 
-MIT for the plugin. The connectome data in `Resources/Connectome` keeps its CC-BY 4.0 license (see the credits above).
+Open source. The plugin (code, mascots, phrases and tools) is **MIT**: see [LICENSE](LICENSE). Use it, change it and ship it, keeping the copyright notice.
+
+One file is not mine and has its own licence: `Resources/Connectome/pn_kc.csv`, the Kenyon-cell wiring, is derived from the **FlyWire** FAFB release 783 connectome and is **CC-BY 4.0** (https://creativecommons.org/licenses/by/4.0/). Redistribute it with credit to Dorkenwald et al. 2024 and Schlegel et al. 2024 (*Nature* 634); the changes made are listed in [Resources/Connectome/CREDITS.md](Resources/Connectome/CREDITS.md). Delete that file and the plugin falls back to a statistical wiring of its own, with no strings attached.
+
+The inventory page follows the analysis in [OptiLogger](https://github.com/vicvasper/Optilogger_UE5.x), also mine. Unreal Engine is Epic Games' trademark; this plugin is not affiliated with Epic.
 
 ---
 
 ## Español
 
-Copiloto de rendimiento para Unreal Engine 5.8 con cerebro de mosca. Una mosca vive encima de tu editor. Mientras descansas hace pequeños experimentos, aprende qué optimizaciones funcionan de verdad **en tu proyecto y en tu equipo**, y te lo cuenta en la siguiente pausa. Nunca cambia nada sin preguntarte.
+Copiloto de rendimiento para Unreal Engine 5.8 con cerebro de mosca. Una mascota pequeña (por defecto OC, el monograma de OptiCompanion) vive encima de tu editor. Mientras descansas hace pequeños experimentos, aprende qué optimizaciones funcionan de verdad **en tu proyecto y en tu equipo**, y te lo cuenta en la siguiente pausa. Nunca cambia nada sin preguntarte.
 
-- **Microsiestas:** si dejas el editor quieto unos segundos, mide el frame y prueba un cambio con bloques A/B intercalados y tiempos por pase de GPU. En cuanto tocas el ratón o el teclado, se despierta y descarta la medida.
+- **Experimentos mientras trabajas:** en cuanto la cámara lleva medio segundo quieta, mide el frame y prueba un cambio con bloques A/B intercalados y tiempos por pase de GPU. Puedes seguir trabajando: solo mover la cámara descarta la medida, y si seleccionas o editas algo que está probando, lo restaura al momento.
 - **Hallazgos:** solo cuando el ahorro es estadísticamente significativo y la imagen no cambia de forma visible.
 - **Reflejo al guardar:** si guardas un asset que empeora el frame, la mosca vuela al viewport y te dice cuál fue.
 - **Cuaderno:** nuevo, pospuesto (en dos horas, en la próxima sesión o cuando el frame pase de 16,6 ms), aplicado (tachado y con deshacer), resuelto por ti, caducado (se vuelve a medir antes de aplicarlo) y descartado.
