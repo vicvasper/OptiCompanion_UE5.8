@@ -62,6 +62,10 @@ namespace
 	constexpr int32 CleanAfterTrials = 12;
 	/** A frame profile this fresh is reused instead of measuring it again before an experiment. */
 	constexpr double ReusableSmellSeconds = 25.0;
+
+	TAutoConsoleVariable<int32> CVarLiveViewer(
+		TEXT("opti.Viewer"), 0,
+		TEXT("1: write Saved/OptiCompanion/Live/brain.json a few times a second, for the standalone brain viewer."));
 	/** Blocks of one variant differing by more than this share of their own mean mean the frame was not comparable. */
 	constexpr double UnstableFrameShare = 0.2;
 	/** After shader or asset compilation stops, the frame needs a moment before it means anything again. */
@@ -412,6 +416,12 @@ bool FOptiCompanion::Tick(float DeltaTime)
 		OnNaturalPause(EPause::BackFromIdle);
 	}
 
+	if (CVarLiveViewer.GetValueOnGameThread() != 0 && Now >= NextLiveWrite)
+	{
+		NextLiveWrite = Now + 0.1;
+		WriteLiveState();
+	}
+
 	if (Now >= NextFindingCheck)
 	{
 		NextFindingCheck = Now + 2.0;
@@ -659,6 +669,8 @@ void FOptiCompanion::OnExperimented(const FOptiProbeResult& Result)
 	}
 
 	// The timing is learned now; how it looks is learned after the visual check (if it is worth one).
+	LastDopamine = GainFraction - NapDecision.Prediction.GainFraction;
+	LastDopamineAt = FPlatformTime::Seconds();
 	Brain.LearnFromExperiment(NapDecision, GainFraction, -1.f);
 	RecentlyTested.Add(Action.Id.ToString() + TEXT("|") + NapSmell.ContextKey, FPlatformTime::Seconds());
 
@@ -1607,6 +1619,59 @@ void FOptiCompanion::OnTickIntervalResult(const FOptiTickIntervalResult& Result)
 	}
 	Queue(Notebook.Add(Finding)->Id);
 	SetMood(EOptiFlyMood::Rubbing);
+}
+
+void FOptiCompanion::WriteLiveState()
+{
+	// One small file, written a few times a second: the viewer is a separate page that just reads it.
+	const double Now = FPlatformTime::Seconds();
+	FString Json = TEXT("{\n");
+	auto Add = [&Json](const FString& Line) { Json += TEXT("  ") + Line + TEXT(",\n"); };
+
+	const TCHAR* Phase = TEXT("watching");
+	switch (Nap)
+	{
+	case ENap::Sniffing: Phase = TEXT("smelling"); break;
+	case ENap::Experimenting: Phase = TEXT("experimenting"); break;
+	case ENap::VisualCheck: Phase = TEXT("looking"); break;
+	default: break;
+	}
+	Add(FString::Printf(TEXT("\"phase\": \"%s\""), Phase));
+	Add(FString::Printf(TEXT("\"time\": %.3f"), Now));
+	Add(FString::Printf(TEXT("\"cells\": %d"), Brain.GetConnectome().NumKenyonCells()));
+	Add(FString::Printf(TEXT("\"wiring\": \"%s\""), *Brain.GetConnectome().Source.Replace(TEXT("\""), TEXT("'"))));
+	Add(FString::Printf(TEXT("\"focus\": \"%s\""), LexToString(Brain.Focus())));
+	Add(FString::Printf(TEXT("\"dopamine\": %.4f"), Now - LastDopamineAt < 2.0 ? LastDopamine : 0.f));
+
+	if (NapDecision.IsValid())
+	{
+		const FOptiFlyBrain::FPrediction& P = NapDecision.Prediction;
+		Add(FString::Printf(TEXT("\"action\": \"%s\""), *NapDecision.Action().Id.ToString()));
+		Add(FString::Printf(TEXT("\"novelty\": %.3f"), NapDecision.Novelty));
+		Add(FString::Printf(TEXT("\"uncertainty\": %.3f"), P.Uncertainty));
+		Add(FString::Printf(TEXT("\"expectedMs\": %.3f"), P.ExpectedMs));
+		Add(FString::Printf(TEXT("\"targetMs\": %.3f"), P.TargetMs));
+		Add(FString::Printf(TEXT("\"mbon\": { \"gain\": %.3f, \"visual\": %.3f, \"acceptance\": %.3f }"), P.GainFraction, P.Visual, P.Acceptance));
+
+		FString Cells;
+		for (int32 Cell : NapDecision.ActiveKenyonCells)
+		{
+			Cells += (Cells.IsEmpty() ? TEXT("") : TEXT(",")) + FString::FromInt(Cell);
+		}
+		Add(FString::Printf(TEXT("\"kenyon\": [%s]"), *Cells));
+	}
+
+	FString Glomeruli;
+	for (int32 Index = 0; Index < NapSmell.Projection.Num(); ++Index)
+	{
+		Glomeruli += FString::Printf(TEXT("%s{\"name\":\"%s\",\"input\":\"%s\",\"v\":%.3f,\"r\":%.3f}"),
+			Index == 0 ? TEXT("") : TEXT(","), EOptiGlom::RealName(Index), EOptiGlom::InputName(Index),
+			NapSmell.Projection[Index], NapSmell.Receptors.IsValidIndex(Index) ? NapSmell.Receptors[Index] : 0.f);
+	}
+	Json += FString::Printf(TEXT("  \"glomeruli\": [%s]\n}\n"), *Glomeruli);
+
+	const FString Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("OptiCompanion") / TEXT("Live") / TEXT("brain.json"));
+	FFileHelper::SaveStringToFile(Json, *Path, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
 void FOptiCompanion::ShowPlaySummary()

@@ -144,6 +144,8 @@ private:
 	void OnBeginPIE(bool bIsSimulating);
 	void OnTickIntervalResult(const FOptiTickIntervalResult& Result);
 	void ShowPlaySummary();
+	/** Writes Saved/OptiCompanion/Live/brain.json for the standalone viewer (Opti.Viewer). */
+	void WriteLiveState();
 	void AttachLayer(TSharedPtr<SWindow> Window);
 	void DetachLayer();
 	void SetMood(EOptiFlyMood NewMood);
@@ -216,5 +218,8 @@ private:
 	FString PlayDecisionBlueprint;
 	int32 ChoosePlayCandidate(const TArray<FOptiBlueprintCost>& Candidates, UWorld* World);
 	bool bPlaySummaryPending = false;
+	double NextLiveWrite = 0.0;
+	float LastDopamine = 0.f;   // measured minus predicted, the error the brain learned from
+	double LastDopamineAt = -1000.0;
 	FDelegateHandle MainFrameHandle;
 };
